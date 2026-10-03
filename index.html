@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#4fc3f0">
-<title>PIER - Registro de Ações</title>
+<title>PIE - Registro de Ações</title>
 <style>
 :root{--azul:#4fc3f0;--azul2:#5bc0de;--fundo:#f4fafd;--txt:#222;--borda:#cfd8dc;--verde:#2e9e4f;--verm:#d9302c}
 *{box-sizing:border-box}
@@ -50,21 +50,25 @@ legend{font-weight:bold;font-size:14px}
 .port .fcard div{padding:8px 10px;font-size:13px}
 .port .fcard img{width:100%;max-width:420px;display:block;margin:6px auto}
 .hidden{display:none!important}
+button.mic{background:#6a4fc3;padding:8px 12px;font-size:14px}
+button.mic.gravando{background:#d9302c}
 @media print{header,.tabs,.nao-imprimir{display:none!important}}
 </style>
 </head>
 <body>
-<header><h1>PIER · Registro de Ações</h1><button class="b sec" id="cfgBtn" style="padding:6px 10px;font-size:13px">Config.</button></header>
+<header><h1>PIE · Registro de Ações</h1><button class="b sec" id="cfgBtn" style="padding:6px 10px;font-size:13px">Config.</button></header>
 <div class="aviso">Atenção: Registro pessoal</div>
+<div id="sync" style="font-size:12px;color:#555;text-align:center;padding:4px"></div>
 <main id="app"></main>
 
 <script>
 const HABILIDADES = ["AI1 - Organizar o material escolar","AI2 - Guardar seus pertences sozinho","AI3 - Abrir mochila/estojo/lancheira sem auxílio","AI4 - Amarrar cadarços","AI5 - Colocar a mochila sozinho","AI6 - Pegar os itens necessários para a execução das atividades","AI7 - Ter hábitos de higiene pessoal e coletiva","AP1 - Reconhecer formas","AP2 - Reconhecer cores","AP3 - Reconhecer números","AP4 - Reconhecer letras","AP5 - Sequenciar corretamente","AP6 - Realizar pareamento","AP7 - Diferenciar gravuras/imagens/detalhes","AP8 - Conceitos matemáticos","AP9 - Noção de quantidade","AP10 - Montar quebra-cabeças","AP11 - Montar jogos com peças","AP12 - Diferenciar e relacionar objetos/imagens","AP13 - Manter atenção concentrada","AP14 - Manter atenção alternada","AP15 - Reconhecer sons das letras","AP16 - Reconhecer rimas e aliterações","AP17 - Memória","CM1 - Utilizar o lápis","CM2 - Recortar com as mãos","CM3 - Recortar com tesoura","CM4 - Colar sem auxílio","CM5 - Encaixar sem auxílio","CM6 - Pintar dentro dos espaços","CM7 - Desenhar","CM8 - Amassar","CM9 - Alinhavar","CM10 - Abrir embalagens/objetos","CM11 - Fechar embalagens/objetos","CM12 - Enroscar","CM13 - Desenroscar","CM14 - Modelar","CM15 - Montar","CM16 - Desmontar","CM17 - Pinçar","CM18 - Pressionar","CM19 - Apertar","CM20 - Perfurar","CM21 - Pular com um pé só","CM22 - Pular com os dois pés","CM23 - Subir degraus","CM24 - Descer degraus","CM25 - Correr em linha reta","CM26 - Agachar","CM27 - Engatinhar","CM28 - Repassar obstáculos","CM29 - Andar nas pontas dos pés","CM30 - Rolar","CM31 - Escorregar","CM32 - Saltar","CT1 - Sentar","CT2 - Esperar","CT3 - Obedecer regras","CT4 - Seguir comandos","CT5 - Responder às consignas","LC1 - Seguir instruções de um passo","LC2 - Seguir instruções de dois passos","LC22 - Compreender comandos","LC21 - Mostrar/localizar","LC8 - Produzir sons com função comunicativa","LC9 - Imitar sons","LC10 - Aumentar pedidos vocais","LC14 - Expressar desejos/sentimentos/dor","LC17 - Utilizar linguagem oral","LC23 - Expressar sentimentos ou dor","LC3 - Identificar partes do corpo","LC4 - Identificar pessoas familiares","LC5 - Identificar objetos","LC6 - Identificar figuras","LC11 - Nomear pessoas","LC12 - Nomear objetos","LC13 - Nomear figuras","LC7 - Apontar itens desejados","LC15 - Fazer contato visual","LC16 - Utilizar gestos","LC18 - Comunicação visual","LC19 - Apontar para o que deseja","LC20 - Conduzir pessoa","IS1 - Imitar movimentos grossos","IS2 - Imitar ações com objetos","IS3 - Imitar movimentos finos","IS4 - Imitar movimentos fonoarticulatórios","IS5 - Imitar movimentos em pé","IS6 - Imitar sequência de movimentos","IS7 - Interagir com colegas","IS8 - Interagir com profissionais","IS9 - Compreender expressões faciais","IS10 - Atender comandos dos colegas","IS11 - Atender comandos dos profissionais","IS12 - Participar em grupo","IS13 - Brincar com colegas","IS14 - Aceitar ajuda","IS15 - Solicitar ajuda","IS16 - Estabelecer diálogo","IS17 - Manter diálogo"];
 const ALUNOS_INICIAIS = [
-  {id:'christian',nome:'CHRISTIAN DOS SANTOS ZAVAM',turma:'Pré Fase 2 C'},
-  {id:'miguel',nome:'MIGUEL SOUSA MACHADO',turma:'Pré Fase 2 D'},
-  {id:'sofia',nome:'SOFIA CAMARGO DE OLIVEIRA',turma:''},
-  {id:'luiz',nome:'LUIZ HENRIQUE DE SOUZA BARROS',turma:''}
+  {id:'a01',nome:'Aluno 01',turma:''},
+  {id:'a02',nome:'Aluno 02',turma:''},
+  {id:'a03',nome:'Aluno 03',turma:''},
+  {id:'a04',nome:'Aluno 04',turma:''},
+  {id:'a05',nome:'Aluno 05',turma:''}
 ];
 const ENDPOINT_PADRAO = 'https://dry-unit-7e8d.fabiosantosbarueri.workers.dev';
 
@@ -93,6 +97,57 @@ const salvar=(s,o)=>req(tx(s,'readwrite').put(o));
 const apagar=(s,id)=>req(tx(s,'readwrite').delete(id));
 const cfg=(k,v)=>{try{if(v===undefined)return localStorage.getItem('pier_'+k);localStorage.setItem('pier_'+k,v)}catch(e){return null}};
 
+/* ---------- sincronização na nuvem (protegida por código de acesso) ---------- */
+const BASE=()=>cfg('endpoint')||ENDPOINT_PADRAO;
+const H=(extra={})=>({'X-Codigo':cfg('codigo')||'',...extra});
+let sincronizando=false;
+const mostrarStatus=t=>{const e=$('#sync');if(e)e.textContent=t};
+async function api(m,path,body,u){const r=await fetch(BASE()+path,{method:m,headers:H(u!==undefined?{'X-U':String(u)}:{}),body});
+ if(r.status===401)throw new Error('código de acesso incorreto');if(!r.ok&&r.status!==404)throw new Error('erro '+r.status);return r}
+const semFotos=a=>({...a,fotos:(a.fotos||[]).map(p=>({id:p.id,nome:p.nome,desc:p.desc}))});
+async function sincronizar(manual){
+ if(sincronizando)return;
+ if(!cfg('codigo')||!BASE()){if(manual)mostrarStatus('Defina o código de acesso em Config.');return}
+ sincronizando=true;mostrarStatus('Sincronizando...');
+ try{
+  const lista=await(await api('GET','/list')).json();const rem={};for(const k of lista)rem[k.n]=k.u;let mudou=false;
+  for(const k of lista){
+   if(k.n==='alunos'){if(k.u>(+cfg('alunos_u')||0)){const d=JSON.parse(await(await api('GET','/k/alunos')).text());for(const a of d.lista)await salvar('alunos',a);cfg('alunos_u',String(k.u));mudou=true}}
+   else if(k.n.startsWith('a:')){const loc=acoes.find(x=>'a:'+x.id===k.n);
+    if(!loc||(loc.u||0)<k.u){const a=JSON.parse(await(await api('GET','/k/'+encodeURIComponent(k.n))).text());
+     if(loc)for(const p of a.fotos||[]){const lp=(loc.fotos||[]).find(x=>x.id===p.id);if(lp&&lp.src){p.src=lp.src;p.enviada=true}}
+     await salvar('acoes',a);mudou=true}}}
+  if(mudou){alunos=await todos('alunos');acoes=await todos('acoes')}
+  for(const a of acoes){const k='a:'+a.id;if((rem[k]||0)<(a.u||0)){
+   for(const p of a.fotos||[]){if(p.src&&!p.enviada){await api('PUT','/k/'+encodeURIComponent('f:'+p.id),p.src,a.u||1);p.enviada=true}}
+   await salvar('acoes',a);await api('PUT','/k/'+encodeURIComponent(k),JSON.stringify(semFotos(a)),a.u||1)}}
+  const au=+cfg('alunos_u')||0;if(au>(rem['alunos']||0))await api('PUT','/k/alunos',JSON.stringify({lista:alunos}),au);
+  mostrarStatus('Sincronizado às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
+  if(mudou&&!form)desenhar();
+ }catch(e){mostrarStatus('Sem sincronia: '+e.message)}
+ sincronizando=false;
+}
+async function carregarFotos(lista){let ch=false;
+ for(const a of lista)for(const p of a.fotos||[]){if(!p.src&&cfg('codigo')){try{const r=await api('GET','/k/'+encodeURIComponent('f:'+p.id));if(r.ok){p.src=await r.text();p.enviada=true;ch=true}}catch(e){}}}
+ if(ch)for(const a of lista)await salvar('acoes',a)}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)sincronizar()});
+/* ---------- microfone (ditado por voz) ---------- */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+function ligarMic(btn,campo,aoMudar){
+ if(!SR){btn.style.display='none';return}
+ let rec=null,ligado=false;
+ const parar=()=>{ligado=false;btn.textContent='🎤 Falar';btn.classList.remove('gravando');try{rec&&rec.stop()}catch(e){}};
+ btn.onclick=()=>{
+  if(ligado){parar();return}
+  rec=new SR();rec.lang='pt-BR';rec.continuous=false;rec.interimResults=false;
+  rec.onresult=e=>{let t='';for(let i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript;t=t.trim();
+   if(t){const v=campo.value;campo.value=(v&&!/\s$/.test(v)?v+' ':v)+t.charAt(0).toUpperCase()+t.slice(1);aoMudar()}};
+  rec.onend=()=>{if(ligado){try{rec.start()}catch(e){parar()}}};
+  rec.onerror=ev=>{if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){parar();alert('Permita o uso do microfone no navegador para ditar.')}else if(ev.error!=='no-speech'&&ev.error!=='aborted'){parar()}};
+  try{rec.start();ligado=true;btn.textContent='⏹ Parar';btn.classList.add('gravando')}catch(e){parar()}
+ };
+}
+
 /* ---------- utilidades ---------- */
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -111,11 +166,13 @@ let alunos=[],acoes=[],aluno=null,aba='alunos',form=null;
 async function iniciar(){
  await abrirDB();
  alunos=await todos('alunos');
+ {const antigos=alunos.filter(a=>!/^a\d+$/.test(a.id));
+  if(antigos.length){for(let i=0;i<antigos.length;i++){antigos[i].nome='Aluno 0'+(i+1);antigos[i].turma='';await salvar('alunos',antigos[i])}cfg('alunos_u',String(Date.now()));alunos=await todos('alunos')}}
  if(!alunos.length){for(const a of ALUNOS_INICIAIS)await salvar('alunos',a);alunos=await todos('alunos')}
  acoes=await todos('acoes');
- desenhar();
+ desenhar();sincronizar();
 }
-const acoesDe=id=>acoes.filter(a=>a.alunoId===id).sort((a,b)=>b.data.localeCompare(a.data)||b.criado-a.criado);
+const acoesDe=id=>acoes.filter(a=>a.alunoId===id&&!a.apagado).sort((a,b)=>b.data.localeCompare(a.data)||b.criado-a.criado);
 
 function desenhar(){
  const app=$('#app');
@@ -124,10 +181,11 @@ function desenhar(){
   app.innerHTML=`<h2>Alunos para Atendimento</h2>`+alunos.map(a=>`<div class="alu"><div><b>${esc(a.nome)}</b><br><small>${esc(a.turma||'')}</small></div>
   <div class="linha"><button class="b sec" data-p="${a.id}">Portfólio</button><button class="b" data-a="${a.id}">Acessar</button></div></div>`).join('')+
   `<p class="linha" style="margin-top:14px"><button class="b sec" id="novoAluno">+ Adicionar aluno</button></p>
-  <div class="msg info">Tudo o que você escreve e as fotos ficam guardados só neste aparelho. Faça uma cópia de segurança em Config.</div>`;
+  ${cfg('codigo')?'<div class="msg info">Seus registros e fotos ficam guardados na nuvem, protegidos pelo código de acesso, e aparecem em todos os seus aparelhos.</div>':'<div class="msg erro"><b>Digite seu código de acesso</b> para ligar a sincronização entre aparelhos:<input type="text" id="cod" placeholder="Código de acesso" style="margin-top:8px"><button class="b verde" id="codOk" style="margin-top:8px">Entrar</button></div>'}`;
+  if($('#codOk'))$('#codOk').onclick=()=>{cfg('codigo',$('#cod').value.trim());sincronizar(true);desenhar()};
   app.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{aluno=alunos.find(x=>x.id===b.dataset.a);aba='nova';form=novoForm();desenhar()});
   app.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{aluno=alunos.find(x=>x.id===b.dataset.p);aba='portfolio';desenhar()});
-  $('#novoAluno').onclick=async()=>{const n=prompt('Nome do aluno:');if(!n)return;const t=prompt('Turma (opcional):')||'';await salvar('alunos',{id:'a'+Date.now(),nome:n.toUpperCase(),turma:t});alunos=await todos('alunos');desenhar()};
+  $('#novoAluno').onclick=async()=>{const n=prompt('Nome do aluno:');if(!n)return;const t=prompt('Turma (opcional):')||'';await salvar('alunos',{id:'a'+Date.now(),nome:n.toUpperCase(),turma:t});alunos=await todos('alunos');cfg('alunos_u',String(Date.now()));desenhar();sincronizar()};
   return;
  }
  app.innerHTML=`<h2>${esc(aluno.nome)}${aluno.turma?' - '+esc(aluno.turma):''}</h2>
@@ -142,8 +200,8 @@ function telaNova(){
  const f=form,c=$('#conteudo');
  c.innerHTML=`<div class="card"><b>Aluno:</b> ${esc(aluno.nome)}<br><b>Turma:</b> ${esc(aluno.turma||'')}</div>
  <label>Data</label><input type="date" id="data" value="${f.data}">
- <label>Ambiente da Atividade</label><input type="text" id="amb" value="${esc(f.ambiente)}">
- <label>Descrição da Atividade</label><textarea id="desc" placeholder="Escreva um resumo curto do que foi feito. A IA melhora o texto.">${esc(f.descricao)}</textarea>
+ <label>Ambiente da Atividade <button class="b mic" id="micAmb" type="button">🎤 Falar</button></label><input type="text" id="amb" value="${esc(f.ambiente)}">
+ <label>Descrição da Atividade <button class="b mic" id="micDesc" type="button">🎤 Falar</button></label><textarea id="desc" placeholder="Escreva um resumo curto do que foi feito. A IA melhora o texto.">${esc(f.descricao)}</textarea>
  <div class="cont" id="cont"></div>
  <div class="linha" style="margin-top:6px"><button class="b" id="ia">✨ Melhorar com IA</button><span id="iaStatus" style="font-size:13px"></span></div>
  <label>Precisou de Intervenção</label>
@@ -163,6 +221,7 @@ function telaNova(){
  const ler=()=>{f.data=$('#data').value;f.ambiente=$('#amb').value;f.descricao=$('#desc').value;f.intervencao=$('#int').value};
  ['#data','#amb','#int'].forEach(s=>$(s).onchange=ler);
  $('#desc').oninput=()=>{ler();contar()};
+ ligarMic($('#micDesc'),$('#desc'),()=>{ler();contar()});ligarMic($('#micAmb'),$('#amb'),ler);
  const contar=()=>{const ps=f.descricao.split(/\n+/).filter(Boolean);$('#cont').textContent=ps.map(p=>letras(p)+' letras').join(' | ')};contar();
  const hab=()=>{$('#listaH').innerHTML=f.habilidades.map((h,i)=>`<div class="hab"><span>${esc(h)}</span><button class="x" data-i="${i}">x</button></div>`).join('');
   $('#listaH').querySelectorAll('.x').forEach(b=>b.onclick=()=>{f.habilidades.splice(+b.dataset.i,1);hab()})};hab();
@@ -173,13 +232,13 @@ function telaNova(){
   $('#fotos').querySelectorAll('[data-n]').forEach(i=>i.oninput=()=>f.fotos[+i.dataset.n].nome=i.value);
   $('#fotos').querySelectorAll('[data-d]').forEach(i=>i.oninput=()=>f.fotos[+i.dataset.d].desc=i.value)};fotos();
  const add=async e=>{const nome=$('#fnome').value,desc=$('#fdesc').value;
-  for(const file of e.target.files){try{f.fotos.push({src:await reduzirFoto(file),nome,desc})}catch(x){$('#aviso').innerHTML=`<div class="msg erro">${esc(x.message)}</div>`}}
+  for(const file of e.target.files){try{f.fotos.push({id:'f'+Date.now()+Math.random().toString(36).slice(2,7),src:await reduzirFoto(file),nome,desc})}catch(x){$('#aviso').innerHTML=`<div class="msg erro">${esc(x.message)}</div>`}}
   e.target.value='';fotos()};
  $('#arq').onchange=add;$('#cam').onchange=add;
  $('#ia').onclick=()=>melhorarIA(ler,()=>{hab();$('#desc').value=f.descricao;contar()});
  $('#cancelar').onclick=()=>{form=null;aba='alunos';aluno=null;desenhar()};
  $('#salvar').onclick=async()=>{ler();if(!f.descricao.trim()){$('#aviso').innerHTML='<div class="msg erro">Escreva a descrição da atividade.</div>';return}
-  await salvar('acoes',f);acoes=await todos('acoes');form=null;aba='anteriores';desenhar()};
+  f.u=Date.now();await salvar('acoes',f);acoes=await todos('acoes');form=null;aba='anteriores';desenhar();sincronizar()};
 }
 
 /* ---------- IA ---------- */
@@ -199,8 +258,8 @@ async function melhorarIA(ler,depois){
   for(let t=1;t<=3;t++){
    st.textContent=`Escrevendo (tentativa ${t} de 3)...`;
    const msg=erro?base+`\n\nSua resposta anterior foi recusada: ${erro}. Corrija e responda só o JSON.`:base;
-   const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:PROMPT_SISTEMA,mensagem:msg})});
-   if(!r.ok)throw new Error('Servidor da IA respondeu '+r.status);
+   const r=await fetch(url,{method:'POST',headers:H({'Content-Type':'application/json'}),body:JSON.stringify({system:PROMPT_SISTEMA,mensagem:msg})});
+   if(r.status===401)throw new Error('Código de acesso incorreto. Digite o código em Config.');if(!r.ok)throw new Error('Servidor da IA respondeu '+r.status);
    const d=await r.json();let txt=(d.texto||'').trim();const m=txt.match(/\{[\s\S]*\}/);let j=null;try{j=JSON.parse(m?m[0]:txt)}catch(e){}
    erro=j?validar({...j,paragrafos:(j.paragrafos||[]).map(limpar)}):'a resposta não veio em JSON';
    if(!erro){f.descricao=j.paragrafos.map(limpar).join('\n\n');f.habilidades=j.habilidades;depois();$('#aviso').innerHTML='<div class="msg ok">Texto e 3 habilidades preenchidos. Confira e ajuste se quiser.</div>';st.textContent='';bt.disabled=false;return}
@@ -216,18 +275,19 @@ function telaAnteriores(){
  c.innerHTML=l.length?l.map(a=>`<div class="acao"><small>${br(a.data)} · ${esc(a.ambiente||'')} ${a.fotos.length?'· 📷 '+a.fotos.length:''}</small><br>${esc(a.descricao).replace(/\n/g,'<br>')}
   <div class="cont" style="text-align:left">${a.habilidades.map(esc).join(' | ')}</div>
   <div class="linha" style="margin-top:6px"><button class="b sec" data-e="${a.id}" style="padding:6px 12px;font-size:13px">Editar</button><button class="b sec" data-x="${a.id}" style="padding:6px 12px;font-size:13px;color:#d9302c">Apagar</button></div></div>`).join(''):'<div class="msg info">Nenhuma ação registrada ainda.</div>';
- c.querySelectorAll('[data-e]').forEach(b=>b.onclick=()=>{form=JSON.parse(JSON.stringify(acoes.find(x=>x.id===b.dataset.e)));aba='nova';desenhar()});
- c.querySelectorAll('[data-x]').forEach(b=>b.onclick=async()=>{if(!confirm('Apagar esta ação e as fotos dela?'))return;await apagar('acoes',b.dataset.x);acoes=await todos('acoes');desenhar()});
+ c.querySelectorAll('[data-e]').forEach(b=>b.onclick=async()=>{const a=acoes.find(x=>x.id===b.dataset.e);b.textContent='Carregando...';await carregarFotos([a]);form=JSON.parse(JSON.stringify(a));aba='nova';desenhar()});
+ c.querySelectorAll('[data-x]').forEach(b=>b.onclick=async()=>{if(!confirm('Apagar esta ação e as fotos dela?'))return;const a=acoes.find(x=>x.id===b.dataset.x);a.apagado=true;a.fotos=[];a.u=Date.now();await salvar('acoes',a);acoes=await todos('acoes');desenhar();sincronizar()});
 }
 
 /* ---------- Portfólio ---------- */
-function portfolio(app){
+async function portfolio(app){
  const l=acoesDe(aluno.id).filter(a=>a.fotos.length);
+ app.innerHTML='<div class="msg info">Carregando fotos...</div>';await carregarFotos(l);
  app.innerHTML=`<div class="nao-imprimir linha" style="margin-bottom:8px"><button class="b cinza" id="voltar">← Voltar</button><button class="b" id="imp">Imprimir / Salvar PDF</button></div>
  <div class="port"><div style="text-align:center"><b style="font-size:20px">Prefeitura Municipal de Barueri<br>SE - Secretaria de Educação</b><br>EMMEI LUIZ ANTONIO DE LIMA</div>
  <h1 style="margin:22px 0 0;font-size:24px">${esc(aluno.nome)}</h1><b>${esc(aluno.turma||'')}</b>
  ${l.length?l.map(a=>`<div class="bloco"><h3>AÇÃO</h3><b>${br(a.data)}</b><br>Ambiente: ${esc(a.ambiente||'')}<br><b>Atividade:</b> ${esc(a.descricao).replace(/\n/g,'<br>')}</div>
-  <div class="imgs"><h3 style="color:#f0b429">REGISTRO DE IMAGENS</h3>${a.fotos.map(p=>`<div class="fcard"><div><b>${br(a.data)} - Autor: FABIO JOSE DOS SANTOS${p.nome?' - '+esc(p.nome):''}</b></div><img src="${p.src}">${p.desc?`<div><b>${esc(p.desc)}</b></div>`:''}</div>`).join('')}</div>`).join(''):'<div class="msg info">O portfólio é composto apenas de ações com foto. Ainda não há nenhuma.</div>'}
+  <div class="imgs"><h3 style="color:#f0b429">REGISTRO DE IMAGENS</h3>${a.fotos.map(p=>`<div class="fcard"><div><b>${br(a.data)} - Autor: FABIO JOSE DOS SANTOS${p.nome?' - '+esc(p.nome):''}</b></div>${p.src?`<img src="${p.src}">`:'<div>(foto ainda não baixada)</div>'}${p.desc?`<div><b>${esc(p.desc)}</b></div>`:''}</div>`).join('')}</div>`).join(''):'<div class="msg info">O portfólio é composto apenas de ações com foto. Ainda não há nenhuma.</div>'}
  </div>`;
  $('#voltar').onclick=()=>{aba='alunos';aluno=null;desenhar()};$('#imp').onclick=()=>print();
 }
@@ -235,9 +295,10 @@ function portfolio(app){
 /* ---------- Config e cópia de segurança ---------- */
 $('#cfgBtn').onclick=()=>{
  const a=$('#app');const url=cfg('endpoint')||'';
- a.innerHTML=`<h2>Configurações</h2><label>Endereço da IA (deixe como está se já funciona)</label><input type="text" id="ep" value="${esc(url)}" placeholder="${esc(ENDPOINT_PADRAO||'https://...')}">
+ a.innerHTML=`<h2>Configurações</h2><label>Código de acesso (o mesmo em todos os aparelhos)</label><input type="text" id="cd" value="${esc(cfg('codigo')||'')}">
+ <label>Endereço da IA e da nuvem (deixe como está se já funciona)</label><input type="text" id="ep" value="${esc(url)}" placeholder="${esc(ENDPOINT_PADRAO||'https://...')}">
  <p class="linha"><button class="b verde" id="sv">Salvar</button> <button class="b sec" id="bk">Baixar cópia de segurança</button> <label class="b sec" style="margin:0">Restaurar cópia<input type="file" id="rs" accept=".json" hidden></label> <button class="b cinza" id="vl">Voltar</button></p><div id="m"></div>`;
- $('#sv').onclick=()=>{cfg('endpoint',$('#ep').value.trim());$('#m').innerHTML='<div class="msg ok">Salvo.</div>'};
+ $('#sv').onclick=()=>{cfg('codigo',$('#cd').value.trim());cfg('endpoint',$('#ep').value.trim());sincronizar(true);$('#m').innerHTML='<div class="msg ok">Salvo.</div>'};
  $('#vl').onclick=()=>{aluno=null;aba='alunos';desenhar()};
  $('#bk').onclick=async()=>{const d={alunos:await todos('alunos'),acoes:await todos('acoes')};const b=new Blob([JSON.stringify(d)],{type:'application/json'});const u=document.createElement('a');u.href=URL.createObjectURL(b);u.download='pier-copia-'+hoje()+'.json';u.click()};
  $('#rs').onchange=async e=>{try{const d=JSON.parse(await e.target.files[0].text());for(const x of d.alunos)await salvar('alunos',x);for(const x of d.acoes)await salvar('acoes',x);alunos=await todos('alunos');acoes=await todos('acoes');$('#m').innerHTML='<div class="msg ok">Cópia restaurada.</div>'}catch(x){$('#m').innerHTML='<div class="msg erro">Arquivo inválido.</div>'}};
