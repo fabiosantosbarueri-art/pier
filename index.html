@@ -242,7 +242,11 @@ function telaNova(){
  $('#arq').onchange=add;$('#cam').onchange=add;
  $('#ia').onclick=()=>melhorarIA(ler,()=>{hab();$('#desc').value=f.descricao;contar()});
  $('#cancelar').onclick=()=>{form=null;aba='alunos';aluno=null;desenhar()};
- $('#salvar').onclick=async()=>{ler();if(!f.descricao.trim()){$('#aviso').innerHTML='<div class="msg erro">Escreva a descrição da atividade.</div>';return}
+ $('#salvar').onclick=async()=>{ler();
+  const obrig=[['Data','#data',!f.data],['Ambiente da Atividade','#amb',!f.ambiente.trim()],['Descrição da Atividade','#desc',!f.descricao.trim()],['Precisou de Intervenção','#int',!f.intervencao],['Habilidades (escolha pelo menos uma)','#addH',!f.habilidades.length]];
+  obrig.forEach(o=>{$(o[1]).style.border=o[2]?'2px solid #d9302c':''});
+  const falta=obrig.filter(o=>o[2]);
+  if(falta.length){$('#aviso').innerHTML='<div class="msg erro"><b>Falta preencher:</b> '+falta.map(o=>o[0]).join(', ')+'. Só o anexo (foto) é opcional.</div>';$(falta[0][1]).scrollIntoView({behavior:'smooth',block:'center'});return}
   f.u=Date.now();await salvar('acoes',f);acoes=await todos('acoes');form=null;aba='anteriores';desenhar();sincronizar()};
 }
 
@@ -258,13 +262,14 @@ async function melhorarIA(ler,depois){
  const url=cfg('endpoint')||ENDPOINT_PADRAO;
  if(!url){st.textContent='';$('#aviso').innerHTML='<div class="msg erro">A IA ainda não foi ligada. Veja o passo da chave nas instruções, ou cole o endereço em Config.</div>';return}
  if(!f.descricao.trim()){$('#aviso').innerHTML='<div class="msg erro">Escreva primeiro um resumo curto da atividade.</div>';return}
+ if(!cfg('codigo')){const c0=prompt('Digite o código de acesso para usar a IA e a nuvem:');if(!c0)return;cfg('codigo',c0.trim());sincronizar()}
  bt.disabled=true;let erro=null,base=`Aluno: ${aluno.nome}.\nAmbiente: ${f.ambiente||'não informado'}.\nPrecisou de intervenção: ${f.intervencao||'não informado'}.\nResumo do professor: ${f.descricao}`;
  try{
   for(let t=1;t<=3;t++){
    st.textContent=`Escrevendo (tentativa ${t} de 3)...`;
    const msg=erro?base+`\n\nSua resposta anterior foi recusada: ${erro}. Corrija e responda só o JSON.`:base;
    const r=await fetch(url,{method:'POST',headers:H({'Content-Type':'application/json'}),body:JSON.stringify({system:PROMPT_SISTEMA,mensagem:msg})});
-   if(r.status===401)throw new Error('Código de acesso incorreto. Digite o código em Config.');if(!r.ok)throw new Error('Servidor da IA respondeu '+r.status);
+   if(r.status===401){const c1=prompt('Código de acesso incorreto. Digite de novo (deixe em branco para cancelar):');if(!c1)throw new Error('Código de acesso incorreto. Digite o código certo em Config.');cfg('codigo',c1.trim());t--;continue}if(!r.ok)throw new Error('Servidor da IA respondeu '+r.status);
    const d=await r.json();let txt=(d.texto||'').trim();const m=txt.match(/\{[\s\S]*\}/);let j=null;try{j=JSON.parse(m?m[0]:txt)}catch(e){}
    erro=j?validar({...j,paragrafos:(j.paragrafos||[]).map(limpar)}):'a resposta não veio em JSON';
    if(!erro){f.descricao=j.paragrafos.map(limpar).join('\n\n');f.habilidades=j.habilidades;depois();$('#aviso').innerHTML='<div class="msg ok">Texto e 3 habilidades preenchidos. Confira e ajuste se quiser.</div>';st.textContent='';bt.disabled=false;return}
