@@ -183,13 +183,17 @@ function desenhar(){
  const app=$('#app');
  if(aba==='portfolio'){return portfolio(app)}
  if(!aluno){
-  app.innerHTML=`<h2>Alunos para Atendimento</h2>`+alunos.map(a=>`<div class="alu"><div><b>${esc(a.nome)}</b><br><small>${esc(a.turma||'')}</small></div>
-  <div class="linha"><button class="b sec" data-p="${a.id}">Portfólio</button><button class="b" data-a="${a.id}">Acessar</button></div></div>`).join('')+
+  app.innerHTML=`<h2>Alunos para Atendimento</h2>`+alunos.map(a=>`<div class="alu"><div><b>${esc(a.nome)}</b><br><small>${esc(a.turma||'')} ${acoesDe(a.id).length} registro(s)</small></div>
+  <div class="linha"><button class="b sec" data-l="${a.id}" style="color:#d9302c;border-color:#d9302c;font-size:13px;padding:8px 10px">Limpar registros</button><button class="b sec" data-p="${a.id}">Portfólio</button><button class="b" data-a="${a.id}">Acessar</button></div></div>`).join('')+
   `<p class="linha" style="margin-top:14px"><button class="b sec" id="novoAluno">+ Adicionar aluno</button></p>
   ${cfg('codigo')?'<div class="msg info">Seus registros e fotos ficam guardados na nuvem, protegidos pelo código de acesso, e aparecem em todos os seus aparelhos.</div>':'<div class="msg erro"><b>Digite seu código de acesso</b> para ligar a sincronização entre aparelhos:<input type="text" id="cod" placeholder="Código de acesso" style="margin-top:8px"><button class="b verde" id="codOk" style="margin-top:8px">Entrar</button></div>'}`;
   if($('#codOk'))$('#codOk').onclick=()=>{cfg('codigo',$('#cod').value.trim());sincronizar(true);desenhar()};
   app.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{aluno=alunos.find(x=>x.id===b.dataset.a);aba='nova';form=novoForm();desenhar()});
   app.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{aluno=alunos.find(x=>x.id===b.dataset.p);aba='portfolio';desenhar()});
+  app.querySelectorAll('[data-l]').forEach(b=>b.onclick=async()=>{const al=alunos.find(x=>x.id===b.dataset.l);const l=acoesDe(al.id);
+   if(!l.length){alert(al.nome+' não tem registros.');return}
+   const t=prompt('ATENÇÃO: isto apaga os '+l.length+' registros e todas as fotos de '+al.nome+', em todos os aparelhos. O aluno continua na lista. Para confirmar, digite APAGAR:');
+   if(t&&t.trim().toUpperCase()==='APAGAR'){b.textContent='Apagando...';await apagarAcoes(l)}});
   $('#novoAluno').onclick=async()=>{const n=prompt('Nome do aluno:');if(!n)return;const t=prompt('Turma (opcional):')||'';await salvar('alunos',{id:'a'+Date.now(),nome:n.toUpperCase(),turma:t});alunos=await todos('alunos');cfg('alunos_u',String(Date.now()));desenhar();sincronizar()};
   return;
  }
@@ -279,6 +283,17 @@ async function melhorarIA(ler,depois){
  bt.disabled=false;
 }
 
+/* ---------- apagar registros (o aluno continua existindo) ---------- */
+async function apagarAcoes(lista){
+ let i=0;
+ for(const a of lista){
+  if(cfg('codigo'))for(const p of a.fotos||[]){try{await api('DELETE','/k/'+encodeURIComponent('f:'+p.id))}catch(e){}}
+  a.apagado=true;a.fotos=[];a.descricao='';a.ambiente='';a.habilidades=[];a.intervencao='';a.u=Date.now()+(i++);
+  await salvar('acoes',a);
+ }
+ acoes=await todos('acoes');desenhar();sincronizar();
+}
+
 /* ---------- Ações anteriores ---------- */
 function telaAnteriores(){
  const l=acoesDe(aluno.id),c=$('#conteudo');
@@ -286,7 +301,7 @@ function telaAnteriores(){
   <div class="cont" style="text-align:left">${a.habilidades.map(esc).join(' | ')}</div>
   <div class="linha" style="margin-top:6px"><button class="b sec" data-e="${a.id}" style="padding:6px 12px;font-size:13px">Editar</button><button class="b sec" data-x="${a.id}" style="padding:6px 12px;font-size:13px;color:#d9302c">Apagar</button></div></div>`).join(''):'<div class="msg info">Nenhuma ação registrada ainda.</div>';
  c.querySelectorAll('[data-e]').forEach(b=>b.onclick=async()=>{const a=acoes.find(x=>x.id===b.dataset.e);b.textContent='Carregando...';await carregarFotos([a]);form=JSON.parse(JSON.stringify(a));aba='nova';desenhar()});
- c.querySelectorAll('[data-x]').forEach(b=>b.onclick=async()=>{if(!confirm('Apagar esta ação e as fotos dela?'))return;const a=acoes.find(x=>x.id===b.dataset.x);a.apagado=true;a.fotos=[];a.u=Date.now();await salvar('acoes',a);acoes=await todos('acoes');desenhar();sincronizar()});
+ c.querySelectorAll('[data-x]').forEach(b=>b.onclick=async()=>{if(!confirm('Apagar esta ação e as fotos dela?'))return;await apagarAcoes([acoes.find(x=>x.id===b.dataset.x)])});
 }
 
 /* ---------- Portfólio ---------- */
