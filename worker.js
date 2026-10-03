@@ -1,6 +1,6 @@
-// Servidor da IA do PIER (Cloudflare Worker). A chave fica no segredo ANTHROPIC_API_KEY, nunca na página.
+// Servidor da IA do PIER (Cloudflare Worker). A chave fica no segredo GEMINI_API_KEY, nunca na página.
 const PERMITIDOS = ['https://fabiosantosbarueri-art.github.io'];
-const MODELO = 'claude-sonnet-5-5';
+const MODELO = 'gemini-2.5-flash';
 
 export default {
   async fetch(req, env) {
@@ -18,14 +18,18 @@ export default {
     const system = String(b.system || '').slice(0, 8000);
     const mensagem = String(b.mensagem || '').slice(0, 4000);
     if (!system || !mensagem) return new Response('Faltam dados', { status: 400, headers: cors });
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`, {
       method: 'POST',
-      headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: MODELO, max_tokens: 1200, system, messages: [{ role: 'user', content: mensagem }] }),
+      headers: { 'x-goog-api-key': env.GEMINI_API_KEY, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{ role: 'user', parts: [{ text: mensagem }] }],
+        generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 1500 },
+      }),
     });
     if (!r.ok) return new Response('Erro da IA ' + r.status, { status: 502, headers: cors });
     const d = await r.json();
-    const texto = (d.content || []).map(c => c.text || '').join('');
+    const texto = (d.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('');
     return new Response(JSON.stringify({ texto }), { headers: { ...cors, 'Content-Type': 'application/json' } });
   },
 };
