@@ -167,8 +167,13 @@ async function iniciar(){
  await abrirDB();
  alunos=await todos('alunos');
  {const antigos=alunos.filter(a=>!/^a\d+$/.test(a.id));
-  if(antigos.length){for(let i=0;i<antigos.length;i++){antigos[i].nome='Aluno 0'+(i+1);antigos[i].turma='';await salvar('alunos',antigos[i])}cfg('alunos_u',String(Date.now()));alunos=await todos('alunos')}}
- if(!alunos.length){for(const a of ALUNOS_INICIAIS)await salvar('alunos',a);alunos=await todos('alunos')}
+  if(antigos.length){const todasAc=await todos('acoes');
+   for(let i=0;i<antigos.length;i++){const velho=antigos[i],nid='a0'+(i+1);
+    await apagar('alunos',velho.id);await salvar('alunos',{id:nid,nome:'Aluno 0'+(i+1),turma:''});
+    for(const ac of todasAc)if(ac.alunoId===velho.id){ac.alunoId=nid;ac.u=Date.now();await salvar('acoes',ac)}}
+   cfg('alunos_u',String(Date.now()));alunos=await todos('alunos')}}
+ for(const a of ALUNOS_INICIAIS)if(!alunos.some(x=>x.id===a.id))await salvar('alunos',a);
+ alunos=await todos('alunos');
  acoes=await todos('acoes');
  desenhar();sincronizar();
 }
