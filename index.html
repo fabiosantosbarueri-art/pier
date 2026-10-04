@@ -210,7 +210,7 @@ function telaNova(){
  c.innerHTML=`<div class="card"><b>Aluno:</b> ${esc(aluno.nome)}<br><b>Turma:</b> ${esc(aluno.turma||'')}</div>
  <label>Data</label><input type="date" id="data" value="${f.data}">
  <label>Ambiente da Atividade <button class="b mic" id="micAmb" type="button">🎤 Falar</button></label><input type="text" id="amb" value="${esc(f.ambiente)}">
- <label>Descrição da Atividade <button class="b mic" id="micDesc" type="button">🎤 Falar</button></label><textarea id="desc" placeholder="Escreva um resumo curto do que foi feito. A IA melhora o texto.">${esc(f.descricao)}</textarea>
+ <label>Descrição da Atividade <button class="b mic" id="micDesc" type="button">🎤 Falar</button> <button class="b mic" id="fotoIA" type="button" style="background:#2e7d9e">🖼 Preencher pelas fotos</button></label><textarea id="desc" placeholder="Escreva um resumo curto do que foi feito. A IA melhora o texto.">${esc(f.descricao)}</textarea>
  <div class="cont" id="cont"></div>
  <div class="linha" style="margin-top:6px"><button class="b" id="ia">✨ Melhorar com IA</button><span id="iaStatus" style="font-size:13px"></span></div>
  <label>Precisou de Intervenção</label>
@@ -245,6 +245,7 @@ function telaNova(){
   e.target.value='';fotos()};
  $('#arq').onchange=add;$('#cam').onchange=add;
  $('#ia').onclick=()=>melhorarIA(ler,()=>{hab();$('#desc').value=f.descricao;contar()});
+ $('#fotoIA').onclick=()=>FotosIA.preencher(f,ler,()=>{hab();$('#desc').value=f.descricao;$('#amb').value=f.ambiente;$('#int').value=f.intervencao;contar();fotos()});
  $('#cancelar').onclick=()=>{form=null;aba='alunos';aluno=null;desenhar()};
  $('#salvar').onclick=async()=>{ler();
   const obrig=[['Data','#data',!f.data],['Ambiente da Atividade','#amb',!f.ambiente.trim()],['Descrição da Atividade','#desc',!f.descricao.trim()],['Precisou de Intervenção','#int',!f.intervencao],['Habilidades (escolha pelo menos uma)','#addH',!f.habilidades.length]];
@@ -332,6 +333,7 @@ $('#cfgBtn').onclick=()=>{
 };
 iniciar();
 </script>
+<script src="fotos-ia.js"></script>
 <script src="dev.js"></script>
 </body>
 </html>

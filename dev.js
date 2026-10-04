@@ -42,8 +42,11 @@ function telaDev(){
  $$('#dDe').onchange=e=>cfg('dev_de',e.target.value);$$('#dAte').onchange=e=>cfg('dev_ate',e.target.value);
  $$('#dFotos').onchange=async e=>{
   $$('#dPend').textContent='Preparando fotos...';
-  for(const f of e.target.files){try{pend.push({id:'f'+Date.now()+Math.random().toString(36).slice(2,7),src:await reduzirFoto(f,1280),ai:(await reduzirFoto(f,384)).split(',')[1]})}catch(x){}}
-  e.target.value='';$$('#dPend').textContent=pend.length?pend.length+' foto(s) prontas para enviar':'';
+  const novas=[];
+  for(const f of e.target.files){try{novas.push({id:'f'+Date.now()+Math.random().toString(36).slice(2,7),src:await reduzirFoto(f,1280)})}catch(x){}}
+  e.target.value='';
+  if(novas.length){const ai=await FotosIA.preparar(novas.map(n=>n.src));if(ai)novas.forEach((n,i)=>pend.push({id:n.id,src:n.src,ai:ai[i]}))}
+  $$('#dPend').textContent=pend.length?pend.length+' foto(s) prontas para enviar':'';
  };
  $$('#dEnv').onclick=enviar;
  $$('#dGerar').onclick=gerar;
