@@ -1,4 +1,4 @@
-/* ===== Fotos para a IA: borrão de rostos (no aparelho) + "Preencher pelas fotos" ===== */
+/* ===== Fotos: borrão com o dedo (pincel) + borrão automático leve + "Preencher pelas fotos" ===== */
 (function(){
 const MP='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 const MODELO='https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite';
@@ -33,7 +33,7 @@ function unir(caixas){
  }
  return out;
 }
-/* procura rostos E pessoas (cabeça de quem está de lado ou olhando para baixo) */
+/* procura rostos E pessoas (cabeça de quem está de lado ou olhando para baixo); devolve áreas LEVES (elipses) */
 async function detectar(img){
  const det=await carregarDetector(),od=await carregarObjetos();
  if(!det&&!od)return null;
@@ -48,86 +48,114 @@ async function detectar(img){
   for(const d of res.detections||[])rostos.push(norm(r,d.boundingBox))}
  const cabecas=[];
  if(od)for(const g of regioes.slice(0,5)){const r=recorte(...g);let res;try{res=od.detect(r.c)}catch(e){continue}
-  for(const d of res.detections||[]){const b=norm(r,d.boundingBox);const c={x:b.x,y:b.y,w:b.w,h:b.h*0.4,auto:true};
+  for(const d of res.detections||[]){const b=norm(r,d.boundingBox);const c={x:b.x,y:b.y,w:b.w,h:b.h*0.3};
    if(!cabecas.some(o=>iou(o,c)>0.3))cabecas.push(c)}}
- const faces=unir(rostos).map(b=>{ // aumenta para cobrir a cabeça inteira com folga
-  const cx=b.x+b.w/2,cy=b.y+b.h/2-b.h*0.08,w=b.w*1.8,h=b.h*2.0;
-  return{x:Math.max(0,cx-w/2),y:Math.max(0,cy-h/2),w:Math.min(1,w),h:Math.min(1,h),auto:true}});
+ const faces=unir(rostos).map(b=>{
+  const cx=b.x+b.w/2,cy=b.y+b.h/2-b.h*0.05,w=b.w*1.5,h=b.h*1.7;
+  return{x:Math.max(0,cx-w/2),y:Math.max(0,cy-h/2),w:Math.min(1,w),h:Math.min(1,h)}});
  return [...faces,...cabecas];
 }
-function pixelar(ctx,x,y,w,h){
- x=Math.max(0,Math.floor(x));y=Math.max(0,Math.floor(y));w=Math.min(ctx.canvas.width-x,Math.ceil(w));h=Math.min(ctx.canvas.height-y,Math.ceil(h));
- if(w<2||h<2)return;
- const blk=Math.max(6,Math.round(ctx.canvas.width*0.045)),bw=Math.min(blk,Math.max(2,Math.round(w/3))),bh=Math.min(blk,Math.max(2,Math.round(h/3)));
- const t=document.createElement('canvas');t.width=Math.max(1,Math.round(w/bw));t.height=Math.max(1,Math.round(h/bh));
- t.getContext('2d').drawImage(ctx.canvas,x,y,w,h,0,0,t.width,t.height);
- ctx.imageSmoothingEnabled=false;ctx.drawImage(t,0,0,t.width,t.height,x,y,w,h);ctx.imageSmoothingEnabled=true;
-}
-function pintar(est){
- const c=est.canvas,ctx=c.getContext('2d');
- ctx.drawImage(est.img,0,0,c.width,c.height);
- for(const r of est.rects)pixelar(ctx,r.x*c.width,r.y*c.height,r.w*c.width,r.h*c.height);
- // moldura vermelha leve só na prévia para mostrar onde há borrão
- ctx.strokeStyle='rgba(217,48,44,.9)';ctx.lineWidth=2;
- for(const r of est.rects)ctx.strokeRect(r.x*c.width,r.y*c.height,r.w*c.width,r.h*c.height);
-}
-function exportar(est){
- const c=document.createElement('canvas');c.width=est.canvas.width;c.height=est.canvas.height;
- const ctx=c.getContext('2d');ctx.drawImage(est.img,0,0,c.width,c.height);
- for(const r of est.rects)pixelar(ctx,r.x*c.width,r.y*c.height,r.w*c.width,r.h*c.height);
- return c.toDataURL('image/jpeg',0.75).split(',')[1];
-}
 
-/* tela de conferência: mostra as fotos já borradas; você pode borrar mais com um toque */
-async function preparar(srcs){
+/* junta a foto com o borrão: onde a "máscara" estiver pintada, a foto fica em quadradinhos */
+function compor(img,mask,W,H,forca){
+ const c=document.createElement('canvas');c.width=W;c.height=H;const ctx=c.getContext('2d');
+ ctx.drawImage(img,0,0,W,H);
+ const bl=Math.max(4,Math.round(W*forca));
+ const t=document.createElement('canvas');t.width=Math.max(1,Math.round(W/bl));t.height=Math.max(1,Math.round(H/bl));
+ t.getContext('2d').drawImage(c,0,0,t.width,t.height);
+ const p=document.createElement('canvas');p.width=W;p.height=H;const pc=p.getContext('2d');
+ pc.imageSmoothingEnabled=false;pc.drawImage(t,0,0,t.width,t.height,0,0,W,H);
+ pc.globalCompositeOperation='destination-in';pc.drawImage(mask,0,0,W,H);
+ ctx.drawImage(p,0,0);
+ return c;
+}
+const maskVazia=m=>{const d=m.getContext('2d').getImageData(0,0,m.width,m.height).data;for(let i=3;i<d.length;i+=4)if(d[i]>20)return false;return true};
+
+/* tela de edição: borrar com o dedo / apagar borrão / rolar a tela */
+async function editor(srcs,op){
  const ov=document.createElement('div');
- ov.style.cssText='position:fixed;inset:0;background:#fff;z-index:99999;overflow:auto;padding:12px;font-family:Arial,Helvetica,sans-serif';
- ov.innerHTML='<h2 style="font-size:17px;margin:6px 0">Proteção de rostos</h2><div id="fiaMsg" style="font-size:14px">Carregando o detector de rostos (na primeira vez demora um pouco)...</div>';
+ ov.style.cssText='position:fixed;inset:0;background:#fff;z-index:99999;overflow:auto;padding:10px;font-family:Arial,Helvetica,sans-serif';
+ ov.innerHTML='<h2 style="font-size:17px;margin:6px 0">Borrar rostos</h2><div style="font-size:14px">Carregando'+(op.ia?' o detector de rostos (na primeira vez demora um pouco)':'')+'...</div>';
  document.body.appendChild(ov);
- const ests=[];
  try{
+  const ests=[];
   for(const s of srcs){
-   const img=await carregarImg(s),W=img.naturalWidth,Hh=img.naturalHeight,k=Math.min(1,640/Math.max(W,Hh));
-   const canvas=document.createElement('canvas');canvas.width=Math.round(W*k);canvas.height=Math.round(Hh*k);
-   ests.push({img,canvas,rects:[],aviso:''});
+   const img=await carregarImg(s),W0=img.naturalWidth,H0=img.naturalHeight,k=Math.min(1,640/Math.max(W0,H0));
+   const canvas=document.createElement('canvas');canvas.width=Math.round(W0*k);canvas.height=Math.round(H0*k);
+   const mask=document.createElement('canvas');mask.width=canvas.width;mask.height=canvas.height;
+   ests.push({img,W0,H0,canvas,mask});
   }
   let semDetector=false;
-  for(const e of ests){const r=await detectar(e.img);if(r===null){semDetector=true}else e.rects=r}
-  const fim=await new Promise(resolve=>{
-   ov.innerHTML=`<h2 style="font-size:17px;margin:6px 0">Proteção de rostos</h2>
-   <div style="background:#fff3cd;border:1px solid #e0a800;border-radius:6px;padding:8px;font-size:14px;margin-bottom:8px">
-   <b>Confira cada foto.</b> Só as cópias <b>borradas</b> abaixo vão para a IA (Gemini, versão gratuita). A sua foto original não é alterada.
-   <b>Se qualquer rosto estiver visível, toque nele para borrar.</b> Toque em um quadrado vermelho para tirar o borrão.
-   ${semDetector?'<br><span style="color:#8a1c18"><b>Não consegui carregar o detector automático.</b> Borre todos os rostos manualmente.</span>':''}</div>
-   <label style="font-size:13px;display:block;margin:6px 0">Tamanho do borrão ao tocar: <input type="range" id="fiaTam" min="8" max="45" value="22" style="vertical-align:middle"></label>
-   <div id="fiaFotos"></div>
-   <div style="position:sticky;bottom:0;background:#fff;padding:10px 0;display:flex;gap:8px;flex-wrap:wrap">
-    <button id="fiaOk" style="padding:12px 16px;border:0;border-radius:6px;background:#2e9e4f;color:#fff;font-size:16px">Confirmo: nenhum rosto aparece. Enviar para a IA</button>
-    <button id="fiaCancela" style="padding:12px 16px;border:0;border-radius:6px;background:#888;color:#fff;font-size:16px">Cancelar</button></div>`;
-   const box=ov.querySelector('#fiaFotos');
+  const auto=async e=>{const r=await detectar(e.img);if(r===null){semDetector=true;return}
+   const mc=e.mask.getContext('2d');mc.globalCompositeOperation='source-over';mc.fillStyle='#fff';
+   for(const q of r){mc.beginPath();mc.ellipse((q.x+q.w/2)*e.mask.width,(q.y+q.h/2)*e.mask.height,q.w*e.mask.width/2,q.h*e.mask.height/2,0,0,Math.PI*2);mc.fill()}};
+  if(op.ia)for(const e of ests)await auto(e);
+
+  return await new Promise(resolve=>{
+   let modo='borrar',forca=0.035,pincel=8;
+   const btn='padding:9px 12px;border:1px solid #5bc0de;border-radius:6px;font-size:14px;';
+   ov.innerHTML=`<div style="position:sticky;top:0;background:#fff;z-index:3;padding:6px 0;border-bottom:1px solid #ddd">
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+     <button data-m="borrar" style="${btn}">🖌 Borrar</button><button data-m="apagar" style="${btn}">🧽 Apagar borrão</button><button data-m="rolar" style="${btn}">✋ Rolar a tela</button>
+     <button id="fAuto" style="${btn}">⚙ Rostos automático</button><button id="fLimpa" style="${btn}">Limpar tudo</button></div>
+    <label style="font-size:13px;display:block;margin:6px 0 0">Tamanho do pincel <input type="range" id="fTam" min="2" max="25" value="8" style="vertical-align:middle;width:55%"></label>
+    <label style="font-size:13px;display:block">Força do borrão (menor = mais suave) <input type="range" id="fFor" min="2" max="8" step="0.5" value="3.5" style="vertical-align:middle;width:40%"></label>
+    <div style="font-size:12px;color:#444;margin-top:2px" id="fDica"></div></div>
+   ${op.ia?`<div style="background:#fff3cd;border:1px solid #e0a800;border-radius:6px;padding:8px;font-size:14px;margin:8px 0">
+    <b>Confira cada foto.</b> Só as cópias <b>borradas</b> vão para a IA (Gemini, versão gratuita). A sua foto original não muda, a menos que você marque a opção lá embaixo.
+    <b>Passe o dedo sobre todo rosto que aparecer</b> para borrar.${semDetector?'<br><span style="color:#8a1c18"><b>Não consegui carregar o detector automático.</b> Borre os rostos com o dedo.</span>':''}</div>`:`<div style="font-size:14px;margin:8px 0">Passe o dedo sobre os rostos para borrar. Use <b>Apagar borrão</b> para desfazer onde errou. A foto guardada no aplicativo será substituída pela borrada.</div>`}
+   <div id="fFotos"></div>
+   <div style="position:sticky;bottom:0;background:#fff;padding:10px 0;border-top:1px solid #ddd">
+    ${op.ia?'<label style="font-size:13px;display:block;margin-bottom:6px"><input type="checkbox" id="fGuardar"> Guardar também a foto <b>borrada</b> no aplicativo (substitui a original)</label>':''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button id="fOk" style="padding:12px 16px;border:0;border-radius:6px;background:#2e9e4f;color:#fff;font-size:16px">${op.ia?'Confirmo: nenhum rosto aparece. Enviar para a IA':'Aplicar borrão na foto'}</button>
+    <button id="fCancela" style="padding:12px 16px;border:0;border-radius:6px;background:#888;color:#fff;font-size:16px">Cancelar</button></div></div>`;
+   const q=s=>ov.querySelector(s);
+   const redesenha=e=>e.canvas.getContext('2d').drawImage(compor(e.img,e.mask,e.canvas.width,e.canvas.height,forca),0,0);
+   const marcaModo=()=>{ov.querySelectorAll('[data-m]').forEach(b=>{const on=b.dataset.m===modo;b.style.background=on?'#2e7d9e':'#fff';b.style.color=on?'#fff':'#0b7aa8'});
+    ests.forEach(e=>e.canvas.style.touchAction=modo==='rolar'?'auto':'none');
+    q('#fDica').textContent=modo==='rolar'?'Modo rolar: arraste para subir e descer a tela.':modo==='borrar'?'Arraste o dedo sobre os rostos para borrar.':'Arraste o dedo sobre o borrão para apagar.'};
+   ov.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{modo=b.dataset.m;marcaModo()});
+   q('#fTam').oninput=ev=>{pincel=+ev.target.value};
+   q('#fFor').oninput=ev=>{forca=(+ev.target.value)/100;ests.forEach(redesenha)};
+   q('#fAuto').onclick=async ev=>{ev.target.textContent='Procurando...';for(const e of ests){await auto(e);redesenha(e)}ev.target.textContent='⚙ Rostos automático'};
+   q('#fLimpa').onclick=()=>{ests.forEach(e=>{e.mask.getContext('2d').clearRect(0,0,e.mask.width,e.mask.height);redesenha(e)})};
+   const box=q('#fFotos');
    ests.forEach((e,idx)=>{
     const d=document.createElement('div');d.style.cssText='margin:10px 0;border:1px solid #ccc;border-radius:6px;padding:6px';
-    const t=document.createElement('div');t.style.cssText='font-size:13px;margin-bottom:4px';
-    e.canvas.style.cssText='width:100%;display:block;cursor:crosshair';
-    const atualiza=()=>{pintar(e);const a=e.rects.filter(r=>r.auto).length,m=e.rects.length-a;t.textContent='Foto '+(idx+1)+': '+a+' região(ões) de rosto/cabeça borrada(s) automaticamente'+(m?' + '+m+' borrão(ões) seu(s)':'')+(e.rects.length?'':'  ⚠ nenhum borrão: confira se não há rostos')};
-    e.canvas.onclick=ev=>{
-     const b=e.canvas.getBoundingClientRect(),nx=(ev.clientX-b.left)/b.width,ny=(ev.clientY-b.top)/b.height;
-     const j=e.rects.findIndex(r=>nx>=r.x&&nx<=r.x+r.w&&ny>=r.y&&ny<=r.y+r.h);
-     if(j>=0)e.rects.splice(j,1);
-     else{const tam=(+ov.querySelector('#fiaTam').value)/100,w=tam,h=tam*(e.canvas.width/e.canvas.height);
-      e.rects.push({x:Math.max(0,Math.min(1-w,nx-w/2)),y:Math.max(0,Math.min(1-h,ny-h/2)),w,h,auto:false})}
-     atualiza();
-    };
-    d.appendChild(t);d.appendChild(e.canvas);box.appendChild(d);atualiza();
+    const t=document.createElement('div');t.style.cssText='font-size:13px;margin-bottom:4px';t.textContent='Foto '+(idx+1);
+    e.canvas.style.cssText='width:100%;display:block;touch-action:none;cursor:crosshair';
+    let ultimo=null;
+    const ponto=ev=>{const b=e.canvas.getBoundingClientRect();return{x:(ev.clientX-b.left)/b.width*e.canvas.width,y:(ev.clientY-b.top)/b.height*e.canvas.height}};
+    const traco=(a,b)=>{const mc=e.mask.getContext('2d'),dia=pincel/100*e.canvas.width;
+     mc.globalCompositeOperation=modo==='borrar'?'source-over':'destination-out';
+     mc.strokeStyle='#fff';mc.fillStyle='#fff';mc.lineWidth=dia;mc.lineCap='round';mc.lineJoin='round';
+     mc.beginPath();mc.moveTo(a.x,a.y);mc.lineTo(b.x,b.y);mc.stroke();
+     mc.beginPath();mc.arc(b.x,b.y,dia/2,0,Math.PI*2);mc.fill();redesenha(e)};
+    e.canvas.onpointerdown=ev=>{if(modo==='rolar')return;ev.preventDefault();e.canvas.setPointerCapture(ev.pointerId);ultimo=ponto(ev);traco(ultimo,ultimo)};
+    e.canvas.onpointermove=ev=>{if(!ultimo)return;const p=ponto(ev);traco(ultimo,p);ultimo=p};
+    const fim=()=>{ultimo=null};e.canvas.onpointerup=fim;e.canvas.onpointercancel=fim;
+    d.appendChild(t);d.appendChild(e.canvas);box.appendChild(d);redesenha(e);
    });
-   ov.querySelector('#fiaOk').onclick=()=>resolve(true);
-   ov.querySelector('#fiaCancela').onclick=()=>resolve(false);
+   marcaModo();
+   q('#fOk').onclick=()=>{
+    if(op.ia){const sem=ests.map((e,i)=>maskVazia(e.mask)?i+1:0).filter(Boolean);
+     if(sem.length&&!confirm('A(s) foto(s) '+sem.join(', ')+' está(ão) SEM nenhum borrão. Tem certeza de que não aparece nenhum rosto nelas?'))return}
+    resolve({ests,forca,guardar:op.ia?q('#fGuardar').checked:true});
+   };
+   q('#fCancela').onclick=()=>resolve(null);
   });
-  if(!fim)return null;
-  return ests.map(exportar);
- }catch(e){
-  alert('Não consegui preparar as fotos: '+e.message);return null;
- }finally{ov.remove()}
+ }catch(e){alert('Não consegui preparar as fotos: '+e.message);return null}
+ finally{ov.remove()}
+}
+async function preparar(srcs){
+ const r=await editor(srcs,{ia:true});if(!r)return null;
+ const ai=r.ests.map(e=>compor(e.img,e.mask,e.canvas.width,e.canvas.height,r.forca).toDataURL('image/jpeg',0.75).split(',')[1]);
+ const full=r.guardar?r.ests.map(e=>compor(e.img,e.mask,e.W0,e.H0,r.forca).toDataURL('image/jpeg',0.85)):null;
+ return{ai,full,guardar:r.guardar};
+}
+async function editar(src){
+ const r=await editor([src],{ia:false});if(!r)return null;
+ const e=r.ests[0];return compor(e.img,e.mask,e.W0,e.H0,r.forca).toDataURL('image/jpeg',0.85);
 }
 
 /* ---------- botão "Preencher pelas fotos" ---------- */
@@ -156,8 +184,10 @@ async function preencher(f,ler,depois){
  const st=document.getElementById('iaStatus'),av=document.getElementById('aviso');
  if(!f.fotos.length){av.innerHTML='<div class="msg erro">Anexe pelo menos uma foto primeiro (Escolher ficheiro ou Tire foto).</div>';return}
  if(!cfg('codigo')){const c0=prompt('Digite o código de acesso para usar a IA e a nuvem:');if(!c0)return;cfg('codigo',c0.trim());sincronizar()}
- const imgs=await preparar(f.fotos.map(p=>p.src));
- if(!imgs)return;
+ const pr=await preparar(f.fotos.map(p=>p.src));
+ if(!pr)return;
+ const imgs=pr.ai;
+ if(pr.guardar&&pr.full){pr.full.forEach((s,i)=>{f.fotos[i].src=s;f.fotos[i].enviada=false});depois()}
  const bt=document.getElementById('fotoIA');bt.disabled=true;
  const pedido=`Aluno: ${aluno.nome}. Ambiente informado: ${f.ambiente||'não informado'}. Resumo do professor: ${f.descricao||'não escreveu nada'}. Há ${imgs.length} foto(s), na ordem abaixo.\n\n${exemplos()?'EXEMPLOS DO ESTILO DO PROFESSOR (não copie, só imite o jeito):\n'+exemplos():''}`;
  let erro=null;
@@ -185,5 +215,5 @@ async function preencher(f,ler,depois){
  }catch(e){av.innerHTML=`<div class="msg erro">${esc(e.message)}</div>`;st.textContent=''}
  bt.disabled=false;
 }
-window.FotosIA={preparar,preencher,_detectarSrc:async s=>{const i=await carregarImg(s);return await detectar(i)}};
+window.FotosIA={preparar,editar,preencher,_detectarSrc:async s=>{const i=await carregarImg(s);return await detectar(i)}};
 })();
