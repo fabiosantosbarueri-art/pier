@@ -45,7 +45,7 @@ function telaDev(){
   const novas=[];
   for(const f of e.target.files){try{novas.push({id:'f'+Date.now()+Math.random().toString(36).slice(2,7),src:await reduzirFoto(f,1280)})}catch(x){}}
   e.target.value='';
-  if(novas.length){const ai=await FotosIA.preparar(novas.map(n=>n.src));if(ai)novas.forEach((n,i)=>pend.push({id:n.id,src:n.src,ai:ai[i]}))}
+  if(novas.length){const r=await FotosIA.preparar(novas.map(n=>n.src));if(r)novas.forEach((n,i)=>pend.push({id:n.id,src:(r.guardar&&r.full&&r.full[i])||n.src,ai:r.ai[i]}))}
   $$('#dPend').textContent=pend.length?pend.length+' foto(s) prontas para enviar':'';
  };
  $$('#dEnv').onclick=enviar;
