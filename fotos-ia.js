@@ -93,6 +93,12 @@ async function preparar(srcs){
  const full=r.guardar?r.ests.map(e=>compor(e.img,e.mask,e.W0,e.H0,r.forca).toDataURL('image/jpeg',0.85)):null;
  return{ai,full,guardar:r.guardar};
 }
+async function copiaIA(src){
+ const img=await carregarImg(src),k=Math.min(1,640/Math.max(img.naturalWidth,img.naturalHeight));
+ const c=document.createElement('canvas');c.width=Math.round(img.naturalWidth*k);c.height=Math.round(img.naturalHeight*k);
+ c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+ return c.toDataURL('image/jpeg',0.75).split(',')[1];
+}
 async function editar(src){
  const r=await editor([src],{ia:false});if(!r)return null;
  const e=r.ests[0];return compor(e.img,e.mask,e.W0,e.H0,r.forca).toDataURL('image/jpeg',0.85);
@@ -124,10 +130,9 @@ async function preencher(f,ler,depois){
  const st=document.getElementById('iaStatus'),av=document.getElementById('aviso');
  if(!f.fotos.length){av.innerHTML='<div class="msg erro">Anexe pelo menos uma foto primeiro (Escolher ficheiro ou Tire foto).</div>';return}
  if(!cfg('codigo')){const c0=prompt('Digite o código de acesso para usar a IA e a nuvem:');if(!c0)return;cfg('codigo',c0.trim());sincronizar()}
- const pr=await preparar(f.fotos.map(p=>p.src));
- if(!pr)return;
- const imgs=pr.ai;
- if(pr.guardar&&pr.full){pr.full.forEach((s,i)=>{f.fotos[i].src=s;f.fotos[i].enviada=false});depois()}
+ if(!confirm('As '+f.fotos.length+' foto(s) anexada(s) serão enviadas para a IA (Gemini, versão gratuita), do jeito que estão agora.\n\nVocê já borrou TODOS os rostos com o botão "✋ Borrar" de cada foto?\n\nOK = enviar para a IA.\nCancelar = voltar para borrar.'))return;
+ let imgs;
+ try{imgs=[];for(const p of f.fotos)imgs.push(await copiaIA(p.src))}catch(e){av.innerHTML='<div class="msg erro">Não consegui preparar as fotos: '+esc(e.message)+'</div>';return}
  const bt=document.getElementById('fotoIA');bt.disabled=true;
  const pedido=`Aluno: ${aluno.nome}. Ambiente informado: ${f.ambiente||'não informado'}. Resumo do professor: ${f.descricao||'não escreveu nada'}. Há ${imgs.length} foto(s), na ordem abaixo.\n\n${exemplos()?'EXEMPLOS DO ESTILO DO PROFESSOR (não copie, só imite o jeito):\n'+exemplos():''}`;
  let erro=null;
