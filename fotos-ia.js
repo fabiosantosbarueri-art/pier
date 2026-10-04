@@ -104,6 +104,23 @@ async function editar(src){
  const e=r.ests[0];return compor(e.img,e.mask,e.W0,e.H0,r.forca).toDataURL('image/jpeg',0.85);
 }
 
+/* ---------- copiar a foto (para colar no sistema da escola, WhatsApp etc.) ---------- */
+async function copiar(src,btn){
+ const txt=btn.textContent,aviso=m=>{btn.textContent=m;setTimeout(()=>btn.textContent=txt,1800)};
+ try{
+  const img=await carregarImg(src),c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;c.getContext('2d').drawImage(img,0,0);
+  const blob=await new Promise(r=>c.toBlob(r,'image/png'));
+  if(navigator.clipboard&&window.ClipboardItem){await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);aviso('✓ Copiada');return}
+  throw new Error('sem área de transferência');
+ }catch(e){
+  try{
+   const jb=await(await fetch(src)).blob(),arq=new File([jb],'foto-pie.jpg',{type:'image/jpeg'});
+   if(navigator.canShare&&navigator.canShare({files:[arq]})){await navigator.share({files:[arq]});aviso('Enviada');return}
+   const a=document.createElement('a');a.href=src;a.download='foto-pie.jpg';a.click();aviso('Baixada');
+  }catch(e2){aviso('Não consegui')}
+ }
+}
+
 /* ---------- câmera do PIE: a foto NÃO passa pela galeria do celular ---------- */
 function camera(){
  return new Promise(resolve=>{
@@ -193,5 +210,5 @@ async function preencher(f,ler,depois){
  }catch(e){av.innerHTML=`<div class="msg erro">${esc(e.message)}</div>`;st.textContent=''}
  bt.disabled=false;
 }
-window.FotosIA={preparar,editar,preencher,camera};
+window.FotosIA={preparar,editar,preencher,camera,copiar};
 })();
