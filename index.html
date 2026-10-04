@@ -225,6 +225,7 @@ function telaNova(){
   <div class="linha" style="margin-top:10px">
    <label class="b" style="margin:0;display:inline-block">Escolher ficheiro<input type="file" id="arq" accept="image/*" multiple hidden></label>
    <label class="b verde" style="margin:0;display:inline-block">📷 Tire foto<input type="file" id="cam" accept="image/*" capture="environment" hidden></label>
+   <button type="button" class="b" id="camPIE" style="background:#2e7d9e">📸 Câmera do PIE</button>
   </div><div class="fotos" id="fotos"></div></fieldset>
  <p style="text-align:center"><button class="b verde" id="salvar">Salvar</button> <button class="b cinza" id="cancelar">Cancelar</button></p><div id="aviso"></div>`;
  const ler=()=>{f.data=$('#data').value;f.ambiente=$('#amb').value;f.descricao=$('#desc').value;f.intervencao=$('#int').value};
@@ -246,6 +247,7 @@ function telaNova(){
   for(const file of e.target.files){try{f.fotos.push({id:'f'+Date.now()+Math.random().toString(36).slice(2,7),src:await reduzirFoto(file),nome,desc})}catch(x){$('#aviso').innerHTML=`<div class="msg erro">${esc(x.message)}</div>`}}
   e.target.value='';fotos()};
  $('#arq').onchange=add;$('#cam').onchange=add;
+ $('#camPIE').onclick=async()=>{const nome=$('#fnome').value,desc=$('#fdesc').value;const lista=await FotosIA.camera();for(const src of lista)f.fotos.push({id:'f'+Date.now()+Math.random().toString(36).slice(2,7),src,nome,desc});if(lista.length)fotos()};
  $('#ia').onclick=()=>melhorarIA(ler,()=>{hab();$('#desc').value=f.descricao;contar()});
  $('#fotoIA').onclick=()=>FotosIA.preencher(f,ler,()=>{hab();$('#desc').value=f.descricao;$('#amb').value=f.ambiente;$('#int').value=f.intervencao;contar();fotos()});
  $('#cancelar').onclick=()=>{form=null;aba='alunos';aluno=null;desenhar()};
@@ -335,7 +337,7 @@ $('#cfgBtn').onclick=()=>{
 };
 iniciar();
 </script>
-<script src="fotos-ia.js?v=3"></script>
-<script src="dev.js?v=3"></script>
+<script src="fotos-ia.js?v=4"></script>
+<script src="dev.js?v=4"></script>
 </body>
 </html>

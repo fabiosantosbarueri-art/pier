@@ -104,6 +104,39 @@ async function editar(src){
  const e=r.ests[0];return compor(e.img,e.mask,e.W0,e.H0,r.forca).toDataURL('image/jpeg',0.85);
 }
 
+/* ---------- câmera do PIE: a foto NÃO passa pela galeria do celular ---------- */
+function camera(){
+ return new Promise(resolve=>{
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){alert('Este navegador não permite usar a câmera dentro do PIE. Use o botão "Tire foto".');resolve([]);return}
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:#000;z-index:99999;display:flex;flex-direction:column;font-family:Arial,Helvetica,sans-serif';
+  ov.innerHTML=`<div id="cMsg" style="color:#fff;font-size:13px;padding:8px;text-align:center">Aponte a câmera e toque em <b>Tirar foto</b>. Pode tirar várias; depois toque em <b>Concluir</b>.</div>
+   <video id="cVid" playsinline autoplay muted style="flex:1;min-height:0;width:100%;object-fit:contain;background:#000"></video>
+   <div style="padding:10px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;background:#111">
+    <button id="cTira" style="padding:14px 18px;border:0;border-radius:30px;background:#fff;color:#000;font-size:16px;font-weight:bold">📸 Tirar foto</button>
+    <button id="cTroca" style="padding:12px 14px;border:0;border-radius:6px;background:#444;color:#fff;font-size:14px">🔄 Trocar câmera</button>
+    <button id="cOk" style="padding:12px 14px;border:0;border-radius:6px;background:#2e9e4f;color:#fff;font-size:14px">✔ Concluir (0)</button>
+    <button id="cCancela" style="padding:12px 14px;border:0;border-radius:6px;background:#888;color:#fff;font-size:14px">Cancelar</button></div>`;
+  document.body.appendChild(ov);
+  const q=s=>ov.querySelector(s),video=q('#cVid'),fotos=[];let stream=null,facing='environment';
+  const parar=()=>{if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}};
+  const iniciar=async()=>{parar();
+   try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing},width:{ideal:1920},height:{ideal:1080}},audio:false});video.srcObject=stream;await video.play()}
+   catch(e){q('#cMsg').innerHTML='<span style="color:#ffb4ab">Não consegui abrir a câmera ('+(e.message||e.name)+'). Permita o uso da câmera no navegador e tente de novo.</span>'}};
+  q('#cTira').onclick=()=>{
+   const vw=video.videoWidth,vh=video.videoHeight;if(!vw)return;
+   const k=Math.min(1,1280/Math.max(vw,vh)),c=document.createElement('canvas');c.width=Math.round(vw*k);c.height=Math.round(vh*k);
+   c.getContext('2d').drawImage(video,0,0,c.width,c.height);
+   fotos.push(c.toDataURL('image/jpeg',0.85));q('#cOk').textContent='✔ Concluir ('+fotos.length+')';
+   video.style.opacity='.3';setTimeout(()=>video.style.opacity='1',120);
+  };
+  q('#cTroca').onclick=()=>{facing=facing==='environment'?'user':'environment';iniciar()};
+  q('#cOk').onclick=()=>{parar();ov.remove();resolve(fotos)};
+  q('#cCancela').onclick=()=>{if(fotos.length&&!confirm('Descartar as '+fotos.length+' foto(s) tiradas agora?'))return;parar();ov.remove();resolve([])};
+  iniciar();
+ });
+}
+
 /* ---------- botão "Preencher pelas fotos" ---------- */
 function exemplos(){
  const meus=acoesDe(aluno.id).slice(0,3);
@@ -160,5 +193,5 @@ async function preencher(f,ler,depois){
  }catch(e){av.innerHTML=`<div class="msg erro">${esc(e.message)}</div>`;st.textContent=''}
  bt.disabled=false;
 }
-window.FotosIA={preparar,editar,preencher};
+window.FotosIA={preparar,editar,preencher,camera};
 })();
