@@ -26,6 +26,10 @@ button.verde{background:var(--verde)}
 button.cinza{background:#888}
 button.sec{background:#fff;color:#0b7aa8;border:1px solid var(--azul2)}
 button:disabled{opacity:.5}
+#corpo.faltou button,#corpo.faltou label.b{background:#888!important;color:#fff!important;border-color:#888!important}
+#corpo{border:0;padding:0;margin:0;min-width:0}
+button.faltou-btn{background:#fff;color:#d9302c;border:2px solid #d9302c}
+button.faltou-btn.on{background:#d9302c;color:#fff}
 .linha{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .hab{display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid #e3e3e3;padding:10px 4px;font-size:14px}
 .x{background:var(--verm);color:#fff;border:0;border-radius:4px;width:34px;height:34px;font-size:16px}
@@ -208,6 +212,8 @@ const novoForm=()=>({id:'x'+Date.now(),alunoId:aluno.id,data:hoje(),ambiente:'',
 function telaNova(){
  const f=form,c=$('#conteudo');
  c.innerHTML=`<div class="card"><b>Aluno:</b> ${esc(aluno.nome)}<br><b>Turma:</b> ${esc(aluno.turma||'')}</div>
+ <p style="text-align:center;margin:10px 0"><button type="button" class="b faltou-btn${f.faltou?' on':''}" id="faltou">${f.faltou?'✔ Aluno faltou (clique para desfazer)':'🚫 Aluno faltou'}</button></p>
+ <fieldset id="corpo" class="${f.faltou?'faltou':''}" ${f.faltou?'disabled':''}>
  <label>Data</label><input type="date" id="data" value="${f.data}">
  <label>Ambiente da Atividade <button class="b mic" id="micAmb" type="button">🎤 Falar</button></label><input type="text" id="amb" value="${esc(f.ambiente)}">
  <label>Descrição da Atividade <button class="b mic" id="micDesc" type="button">🎤 Falar</button> <button class="b mic" id="fotoIA" type="button" style="background:#2e7d9e">🖼 Preencher pelas fotos</button></label><textarea id="desc" placeholder="Escreva um resumo curto do que foi feito. A IA melhora o texto.">${esc(f.descricao)}</textarea>
@@ -227,6 +233,7 @@ function telaNova(){
    <label class="b verde" style="margin:0;display:inline-block">📷 Tire foto<input type="file" id="cam" accept="image/*" capture="environment" hidden></label>
    <button type="button" class="b" id="camPIE" style="background:#2e7d9e">📸 Câmera do PIE</button>
   </div><div class="fotos" id="fotos"></div></fieldset>
+ </fieldset>
  <p style="text-align:center"><button class="b verde" id="salvar">Salvar</button> <button class="b cinza" id="cancelar">Cancelar</button></p><div id="aviso"></div>`;
  const ler=()=>{f.data=$('#data').value;f.ambiente=$('#amb').value;f.descricao=$('#desc').value;f.intervencao=$('#int').value};
  ['#data','#amb','#int'].forEach(s=>$(s).onchange=ler);
@@ -251,8 +258,10 @@ function telaNova(){
  $('#camPIE').onclick=async()=>{const nome=$('#fnome').value,desc=$('#fdesc').value;const lista=await FotosIA.camera();for(const src of lista)f.fotos.push({id:'f'+Date.now()+Math.random().toString(36).slice(2,7),src,nome,desc});if(lista.length)fotos()};
  $('#ia').onclick=()=>melhorarIA(ler,()=>{hab();$('#desc').value=f.descricao;contar()});
  $('#fotoIA').onclick=()=>FotosIA.preencher(f,ler,()=>{hab();$('#desc').value=f.descricao;$('#amb').value=f.ambiente;$('#int').value=f.intervencao;contar();fotos()});
+ $('#faltou').onclick=()=>{ler();f.faltou=!f.faltou;telaNova()};
  $('#cancelar').onclick=()=>{form=null;aba='alunos';aluno=null;desenhar()};
  $('#salvar').onclick=async()=>{ler();
+  if(f.faltou){f.ambiente='';f.descricao='Aluno faltou';f.intervencao='';f.habilidades=[];f.fotos=[];f.u=Date.now();await salvar('acoes',f);acoes=await todos('acoes');form=null;aba='anteriores';desenhar();sincronizar();return}
   const obrig=[['Data','#data',!f.data],['Ambiente da Atividade','#amb',!f.ambiente.trim()],['Descrição da Atividade','#desc',!f.descricao.trim()],['Precisou de Intervenção','#int',!f.intervencao],['Habilidades (escolha pelo menos uma)','#addH',!f.habilidades.length]];
   obrig.forEach(o=>{$(o[1]).style.border=o[2]?'2px solid #d9302c':''});
   const falta=obrig.filter(o=>o[2]);
@@ -303,7 +312,7 @@ async function apagarAcoes(lista){
 /* ---------- Ações anteriores ---------- */
 function telaAnteriores(){
  const l=acoesDe(aluno.id),c=$('#conteudo');
- c.innerHTML=l.length?l.map(a=>`<div class="acao"><small>${br(a.data)} · ${esc(a.ambiente||'')} ${a.fotos.length?'· 📷 '+a.fotos.length:''}</small><br>${esc(a.descricao).replace(/\n/g,'<br>')}
+ c.innerHTML=l.length?l.map(a=>`<div class="acao"><small>${br(a.data)} · ${a.faltou?'🚫 FALTOU':esc(a.ambiente||'')} ${a.fotos.length?'· 📷 '+a.fotos.length:''}</small><br>${esc(a.descricao).replace(/\n/g,'<br>')}
   <div class="cont" style="text-align:left">${a.habilidades.map(esc).join(' | ')}</div>
   <div class="linha" style="margin-top:6px"><button class="b sec" data-e="${a.id}" style="padding:6px 12px;font-size:13px">Editar</button><button class="b sec" data-x="${a.id}" style="padding:6px 12px;font-size:13px;color:#d9302c">Apagar</button></div></div>`).join(''):'<div class="msg info">Nenhuma ação registrada ainda.</div>';
  c.querySelectorAll('[data-e]').forEach(b=>b.onclick=async()=>{const a=acoes.find(x=>x.id===b.dataset.e);b.textContent='Carregando...';await carregarFotos([a]);form=JSON.parse(JSON.stringify(a));aba='nova';desenhar()});
